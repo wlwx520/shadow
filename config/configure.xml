@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configrue>
+	<time>1800</time>
+	<source>
+		<url>jdbc\:sqlserver\://192.168.10.220\:1433;databaseName\=TunnelStaff3
+		</url>
+		<diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver>
+		<user>sa</user>
+		<password>admin123</password>
+	</source>
+	<target>
+		<url>jdbc\:sqlserver\://192.168.10.220\:1433;databaseName\=TunnelStaff3
+		</url>
+		<diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver>
+		<user>sa</user>
+		<password>admin123</password>
+	</target>
+	<tables>
+		<table name="xxx" type="update">
+			<field name="id" type="int" />
+		</table>
+	</tables>
+</configrue>
