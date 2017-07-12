@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class SqlService {
 	public static SqlService instance = new SqlService();
@@ -13,8 +14,28 @@ public class SqlService {
 		return instance;
 	}
 
-	public void getLast(Connection conn, Table table) {
-		String sql = "SELECT MAX(id) AS last FROM " + table.name;
+	public void createTableIfNotExits(Connection conn, List<Table> tables, String projectId) {
+		if (tables != null) {
+			for (Table table : tables) {
+				try {
+					StringBuilder sql = new StringBuilder();
+					sql.append("if not exists (select * from sysobjects where id = object_id('");
+					sql.append(table.name + projectId);
+					sql.append("') ");
+					sql.append("and OBJECTPROPERTY(id, 'IsUserTable') = 1 ");
+					sql.append("create table");
+					sql.append(table.name + projectId);
+					PreparedStatement prepareStatement = conn.prepareStatement(sql.toString());
+					prepareStatement.execute();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	public void getLast(Connection conn, Table table, String projctId) {
+		String sql = "SELECT MAX(id) AS last FROM " + table.name + projctId;
 		try (PreparedStatement prepareStatement = conn.prepareStatement(sql);
 				ResultSet rs = prepareStatement.executeQuery()) {
 			if (rs != null && rs.next()) {
@@ -50,17 +71,17 @@ public class SqlService {
 					if (p.type.equals(String.class)) {
 						String value = rs.getString(p.name);
 						if (value != null) {
-							rec.add(p.name, value, String.class);
+							rec.add(p.name, value, String.class, p.dataSourceName);
 						}
 					} else if (p.type.equals(Integer.class)) {
 						Integer value = rs.getInt(p.name);
 						if (value != null) {
-							rec.add(p.name, value, Integer.class);
+							rec.add(p.name, value, Integer.class, p.dataSourceName);
 						}
 					} else if (p.type.equals(Date.class)) {
 						Date value = rs.getDate(p.name);
 						if (value != null) {
-							rec.add(p.name, value, Date.class);
+							rec.add(p.name, value, Date.class, p.dataSourceName);
 						}
 					}
 				}
@@ -71,22 +92,22 @@ public class SqlService {
 		}
 	}
 
-	public void updateTable(Connection conn, Table table) {
+	public void updateTable(Connection conn, Table table, String projectId) {
 		if (table.properties.isEmpty()) {
 			return;
 		}
 		if (table.type.equals("update")) {
 			StringBuilder sql = new StringBuilder();
-			sql.append("truncate table " + table.name);
+			sql.append("truncate table " + table.name + projectId);
 			try (PreparedStatement prepareStatement = conn.prepareStatement(sql.toString());) {
 				prepareStatement.execute();
-			} catch (SQLException e) {
+  			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
 
 		StringBuilder sql = new StringBuilder();
-		sql.append("insert into " + table.name + " (");
+		sql.append("insert into " + table.name + projectId + " (");
 		for (Property p : table.properties) {
 			sql.append(p.name + ", ");
 		}

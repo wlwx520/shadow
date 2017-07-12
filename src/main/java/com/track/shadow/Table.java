@@ -8,11 +8,13 @@ public class Table {
 	ArrayList<Property> properties;
 	int max = -1;
 	ArrayList<Recod> recods = new ArrayList<>();
+	int timeOff;
 
-	public Table(String name, ArrayList<Property> properties, String type) {
+	public Table(String name, ArrayList<Property> properties, String type, int timeOff) {
 		this.name = name;
 		this.properties = properties;
 		this.type = type;
+		this.timeOff = timeOff;
 	}
 
 	public void add(Recod rec) {

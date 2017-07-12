@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -15,13 +13,14 @@ import org.dom4j.io.SAXReader;
 
 public class SynchronizedService {
 	int time;
+	String projectId;
 	SqlService sqlService;
 	DBHelper source;
 	DBHelper target;
 	ArrayList<Table> tables;
 
 	@SuppressWarnings("unchecked")
-	public SynchronizedService() {
+	public void init() {
 		try {
 			LogServer.log("start to init configure...");
 
@@ -48,6 +47,7 @@ public class SynchronizedService {
 				Element table0 = tablesIt.next();
 				String tableName = table0.attribute("name").getData().toString();
 				String tableType = table0.attribute("type").getData().toString();
+				int timeOff = Integer.valueOf(table0.attribute("timeoff").getData().toString());
 				if (!tableType.equals("update") && !tableType.equals("insert")) {
 					throw new RuntimeException(
 							"type is error...only support to be update or insert !  this table is " + tableName);
@@ -60,13 +60,14 @@ public class SynchronizedService {
 					String fieldType = field0.attributeValue("type");
 					switch (fieldType) {
 					case "int":
-						properties.add(new Property(fieldName, null, Integer.class));
+						properties.add(new Property(fieldName, null, Integer.class, fieldType));
 						break;
-					case "String":
-						properties.add(new Property(fieldName, null, String.class));
+					case "varchar":
+					case "nvarchar":
+						properties.add(new Property(fieldName, null, String.class, fieldType));
 						break;
 					case "Date":
-						properties.add(new Property(fieldName, null, Date.class));
+						properties.add(new Property(fieldName, null, Date.class, fieldType));
 						break;
 					default:
 						throw new RuntimeException(
@@ -74,13 +75,14 @@ public class SynchronizedService {
 										+ fieldName);
 					}
 				}
-				Table table = new Table(tableName, properties, tableType);
+				Table table = new Table(tableName, properties, tableType, timeOff);
 				tables.add(table);
 			}
 
 			sqlService = new SqlService();
 
 			time = Integer.valueOf(rootElement.element("time").getData().toString());
+			projectId = rootElement.element("projectId").getData().toString();
 
 			LogServer.log("end to init configure...");
 		} catch (IOException e) {
@@ -91,31 +93,45 @@ public class SynchronizedService {
 	}
 
 	public void process() {
-		new Timer().schedule(new TimerTask() {
-			@Override
-			public void run() {
-				LogServer.log("start to update tables...");
-				tables.forEach(table -> {
-					LogServer.log("start to init table...table = " + table.name);
-					if (table.type.equals("update")) {
-						table.max = 0;
-						LogServer.log("this table must update data all of this...");
-					} else if (table.type.equals("insert")) {
-						sqlService.getLast(target.getConn(), table);
-						LogServer.log("this table only insert...insert from " + table.max);
-					}
+		int index = 0;
+		while (true) {
+			init();
+			LogServer.log("start to update tables...");
+			ArrayList<Table> tmpTables = new ArrayList<>();
+			tmpTables.addAll(tables);
+			final int t = index;
+			tmpTables.forEach(table -> {
+				if (t % table.timeOff != 0) {
+					return;
+				}
+				LogServer.log("start to init table...table = " + table.name);
+				if (table.type.equals("update")) {
+					table.max = 0;
+					LogServer.log("this table must update data all of this...");
+				} else if (table.type.equals("insert")) {
+					sqlService.getLast(target.getConn(), table, projectId);
+					LogServer.log("this table only insert...insert from " + table.max);
+				}
 
-					LogServer.log("start to get data from source...");
-					sqlService.getRecords(source.getConn(), table);
-					LogServer.log("get data from source completed...data count = " + table.recods.size());
+				LogServer.log("start to get data from source...");
+				sqlService.getRecords(source.getConn(), table);
+				LogServer.log("get data from source completed...data count = " + table.recods.size());
 
-					LogServer.log("start to update data to target...");
-					sqlService.updateTable(target.getConn(), table);
-					LogServer.log("update data to target completed...");
-				});
+				LogServer.log("start to update data to target...");
+				sqlService.updateTable(target.getConn(), table, projectId);
+				LogServer.log("update data to target completed...");
+				LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+			});
+			LogServer.log("####################################################");
+			index++;
+			source.close();
+			target.close();
+			try {
+				Thread.sleep(time * 1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-		}, 0, time);
-
+		}
 	}
 
 }

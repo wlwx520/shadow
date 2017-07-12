@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <configrue>
-	<time>1800</time>
+	<projectId>1</projectId>
+	<time>10</time>
 	<source>
-		<url>jdbc\:sqlserver\://192.168.10.220\:1433;databaseName\=TunnelStaff3
-		</url>
-		<diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver>
-		<user>sa</user>
-		<password>admin123</password>
+		<url>jdbc:mysql://localhost:3306/test</url>
+		<!-- <diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver> -->
+		<diver>com.mysql.jdbc.Driver</diver>
+		<user>root</user>
+		<password>920831as</password>
 	</source>
 	<target>
-		<url>jdbc\:sqlserver\://192.168.10.220\:1433;databaseName\=TunnelStaff3
-		</url>
-		<diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver>
-		<user>sa</user>
-		<password>admin123</password>
+		<url>jdbc:mysql://localhost:3306/test</url>
+		<!-- <diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver> -->
+		<diver>com.mysql.jdbc.Driver</diver>
+		<user>root</user>
+		<password>920831as</password>
 	</target>
 	<tables>
-		<table name="xxx" type="update">
+		<table name="test" type="update" timeoff="1">
 			<field name="id" type="int" />
+			<field name="name" type="varchar" />
+		</table>
+			<table name="testi" type="insert" timeoff="2">
+			<field name="id" type="int" />
+			<field name="name" type="varchar" />
 		</table>
 	</tables>
 </configrue>
