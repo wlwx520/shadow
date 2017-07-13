@@ -124,12 +124,16 @@ public class SqlService {
 			for (Recod rec : table.recods) {
 				for (int i = 0; i < table.properties.size(); i++) {
 					Property p = table.properties.get(i);
+					Property property = rec.map.get(p.name);
+					if(property==null){
+						continue;
+					}
 					if (p.type.equals(String.class)) {
-						prepareStatement.setString(i + 1, (String) (rec.map.get(p.name).value));
+						prepareStatement.setString(i + 1, (String) (property.value));
 					} else if (p.type.equals(Integer.class)) {
-						prepareStatement.setInt(i + 1, (int) (rec.map.get(p.name).value));
+						prepareStatement.setInt(i + 1, (int) (property.value));
 					} else if (p.type.equals(Date.class)) {
-						prepareStatement.setDate(i + 1, (Date) (rec.map.get(p.name).value));
+						prepareStatement.setDate(i + 1, (Date) (property.value));
 					}
 				}
 				prepareStatement.addBatch();
