@@ -2,7 +2,8 @@
 
 <configrue>
 	<projectId>1</projectId>
-	<time>10</time>
+	<time>2</time>
+	<pageSize>1</pageSize>
 	<source>
 		<url>jdbc:mysql://localhost:3306/test</url>
 		<!-- <diver>com.microsoft.sqlserver.jdbc.SQLServerDriver</diver> -->

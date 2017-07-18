@@ -1,0 +1,1 @@
+java -jar -Xms100m -Xmx100m shadow-0.0.1-SNAPSHOT-build.jar

@@ -5,37 +5,32 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 
 public class SqlService {
-	public static SqlService instance = new SqlService();
+	public static String PAGESIZE = "1000";
 
-	public static SqlService instance() {
-		return instance;
+	private static final String MYSQL = "mySql";
+	private static final String SQLSERVER = "sqlServer";
+
+	public static SqlService instanceMySql = new SqlService(MYSQL);
+	public static SqlService instanceSqlServer = new SqlService(SQLSERVER);
+
+	private SqlService(String divier) {
+		this.divier = divier;
 	}
 
-	public void createTableIfNotExits(Connection conn, List<Table> tables, String projectId) {
-		if (tables != null) {
-			for (Table table : tables) {
-				try {
-					StringBuilder sql = new StringBuilder();
-					sql.append("if not exists (select * from sysobjects where id = object_id('");
-					sql.append(table.name + projectId);
-					sql.append("') ");
-					sql.append("and OBJECTPROPERTY(id, 'IsUserTable') = 1 ");
-					sql.append("create table");
-					sql.append(table.name + projectId);
-					PreparedStatement prepareStatement = conn.prepareStatement(sql.toString());
-					prepareStatement.execute();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}
-		}
+	private String divier;
+
+	public static SqlService instanceMySql() {
+		return instanceMySql;
+	}
+
+	public static SqlService instanceSqlServer() {
+		return instanceSqlServer;
 	}
 
 	public void getLast(Connection conn, Table table, String projctId) {
-		String sql = "SELECT MAX(id) AS last FROM " + table.name + projctId;
+		String sql = "SELECT MAX(id) AS last FROM " + projctId + table.name;
 		try (PreparedStatement prepareStatement = conn.prepareStatement(sql);
 				ResultSet rs = prepareStatement.executeQuery()) {
 			if (rs != null && rs.next()) {
@@ -46,16 +41,23 @@ public class SqlService {
 		}
 	}
 
-	public void getRecords(Connection conn, Table table) {
+	public boolean getRecords(Connection conn, Table table, boolean flg) {
 		if (table.max == -1) {
-			return;
+			return false;
 		}
 		if (table.properties.isEmpty()) {
-			return;
+			return false;
 		}
+
+		table.recods.clear();
 		try {
 			StringBuilder sql = new StringBuilder();
 			sql.append("SELECT ");
+
+			if (flg && divier.equals(SQLSERVER)) {
+				sql.append(" TOP " + PAGESIZE + " ");
+			}
+
 			for (Property p : table.properties) {
 				sql.append(p.name + ", ");
 			}
@@ -63,9 +65,15 @@ public class SqlService {
 			sql.append("FROM ");
 			sql.append(table.name + " ");
 			sql.append("WHERE id>" + table.max);
+
+			if (flg && divier.equals(MYSQL)) {
+				sql.append(" LIMIT " + PAGESIZE + " ");
+			}
+
 			PreparedStatement prepareStatement = conn.prepareStatement(sql.toString());
 			ResultSet rs = prepareStatement.executeQuery();
-			while (rs.next()) {
+			int size = 0;
+			while (rs.next() && (flg ? size < Integer.valueOf(PAGESIZE) : true)) {
 				Recod rec = new Recod();
 				for (Property p : table.properties) {
 					if (p.type.equals(String.class)) {
@@ -86,10 +94,15 @@ public class SqlService {
 					}
 				}
 				table.add(rec);
+				size++;
+			}
+			if (size == Integer.valueOf(PAGESIZE)) {
+				return true;
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		return false;
 	}
 
 	public void updateTable(Connection conn, Table table, String projectId) {
@@ -98,16 +111,16 @@ public class SqlService {
 		}
 		if (table.type.equals("update")) {
 			StringBuilder sql = new StringBuilder();
-			sql.append("truncate table " + table.name + projectId);
+			sql.append("truncate table " + projectId + table.name);
 			try (PreparedStatement prepareStatement = conn.prepareStatement(sql.toString());) {
 				prepareStatement.execute();
-  			} catch (SQLException e) {
+			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
 
 		StringBuilder sql = new StringBuilder();
-		sql.append("insert into " + table.name + projectId + " (");
+		sql.append("insert into " + projectId + table.name + " (");
 		for (Property p : table.properties) {
 			sql.append(p.name + ", ");
 		}
@@ -125,7 +138,7 @@ public class SqlService {
 				for (int i = 0; i < table.properties.size(); i++) {
 					Property p = table.properties.get(i);
 					Property property = rec.map.get(p.name);
-					if(property==null){
+					if (property == null) {
 						continue;
 					}
 					if (p.type.equals(String.class)) {

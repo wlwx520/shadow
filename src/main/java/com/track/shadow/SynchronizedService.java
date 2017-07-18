@@ -14,9 +14,12 @@ import org.dom4j.io.SAXReader;
 public class SynchronizedService {
 	int time;
 	String projectId;
-	SqlService sqlService;
+	SqlService mySqlService;
+	SqlService sqlServerService;
 	DBHelper source;
 	DBHelper target;
+	String sourceDiver;
+	String targetDiver;
 	ArrayList<Table> tables;
 
 	@SuppressWarnings("unchecked")
@@ -31,14 +34,16 @@ public class SynchronizedService {
 			Element rootElement = document.getRootElement();
 
 			Element source0 = rootElement.element("source");
-			source = new DBHelper(source0.element("url").getData().toString(),
-					source0.element("diver").getData().toString(), source0.element("user").getData().toString(),
-					source0.element("password").getData().toString());
+			String sourceDiver = source0.element("diver").getData().toString();
+			this.sourceDiver = sourceDiver;
+			source = new DBHelper(source0.element("url").getData().toString(), sourceDiver,
+					source0.element("user").getData().toString(), source0.element("password").getData().toString());
 
 			Element target0 = rootElement.element("target");
-			target = new DBHelper(target0.element("url").getData().toString(),
-					target0.element("diver").getData().toString(), target0.element("user").getData().toString(),
-					target0.element("password").getData().toString());
+			String targetDiver = target0.element("diver").getData().toString();
+			this.targetDiver = targetDiver;
+			target = new DBHelper(target0.element("url").getData().toString(), targetDiver,
+					target0.element("user").getData().toString(), target0.element("password").getData().toString());
 
 			tables = new ArrayList<>();
 			Element tables0 = rootElement.element("tables");
@@ -79,10 +84,12 @@ public class SynchronizedService {
 				tables.add(table);
 			}
 
-			sqlService = new SqlService();
+			mySqlService = SqlService.instanceMySql();
+			sqlServerService = SqlService.instanceSqlServer();
 
 			time = Integer.valueOf(rootElement.element("time").getData().toString());
 			projectId = rootElement.element("projectId").getData().toString();
+			SqlService.PAGESIZE = rootElement.element("pageSize").getData().toString();
 
 			LogServer.log("end to init configure...");
 		} catch (IOException e) {
@@ -92,15 +99,33 @@ public class SynchronizedService {
 		}
 	}
 
+	private SqlService getSourceService() {
+		switch (sourceDiver) {
+		case "com.microsoft.sqlserver.jdbc.SQLServerDriver":
+			return sqlServerService;
+		case "com.mysql.jdbc.Driver":
+			return mySqlService;
+		}
+		return null;
+	}
+
+	private SqlService getTargetService() {
+		switch (targetDiver) {
+		case "com.microsoft.sqlserver.jdbc.SQLServerDriver":
+			return sqlServerService;
+		case "com.mysql.jdbc.Driver":
+			return mySqlService;
+		}
+		return null;
+	}
+
 	public void process() {
 		int index = 0;
 		while (true) {
 			init();
 			LogServer.log("start to update tables...");
-			ArrayList<Table> tmpTables = new ArrayList<>();
-			tmpTables.addAll(tables);
 			final int t = index;
-			tmpTables.forEach(table -> {
+			tables.forEach(table -> {
 				if (t % table.timeOff != 0) {
 					return;
 				}
@@ -108,24 +133,40 @@ public class SynchronizedService {
 				if (table.type.equals("update")) {
 					table.max = 0;
 					LogServer.log("this table must update data all of this...");
+					LogServer.log("start to get data from source...");
+
+					getSourceService().getRecords(source.getConn(), table, false);
+					LogServer.log("get data from source completed...data count = " + table.recods.size());
+					
+					LogServer.log("start to update data to target...");
+					getTargetService().updateTable(target.getConn(), table, projectId);
+					LogServer.log("update data to target completed...");
+					LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 				} else if (table.type.equals("insert")) {
-					sqlService.getLast(target.getConn(), table, projectId);
-					LogServer.log("this table only insert...insert from " + table.max);
+					boolean again = false;
+					do {
+						getTargetService().getLast(target.getConn(), table, projectId);
+						LogServer.log("this table only insert...insert from " + table.max);
+
+						LogServer.log("start to get data from source...");
+						again = getSourceService().getRecords(source.getConn(), table, true);
+						LogServer.log("get data from source completed...data count = " + table.recods.size());
+						
+						LogServer.log("start to update data to target...");
+						getTargetService().updateTable(target.getConn(), table, projectId);
+						LogServer.log("update data to target completed...");
+						LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+					} while (again);
 				}
 
-				LogServer.log("start to get data from source...");
-				sqlService.getRecords(source.getConn(), table);
-				LogServer.log("get data from source completed...data count = " + table.recods.size());
-
-				LogServer.log("start to update data to target...");
-				sqlService.updateTable(target.getConn(), table, projectId);
-				LogServer.log("update data to target completed...");
-				LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 			});
 			LogServer.log("####################################################");
 			index++;
 			source.close();
 			target.close();
+			source = null;
+			target = null;
+			tables = null;
 			try {
 				Thread.sleep(time * 1000);
 			} catch (InterruptedException e) {
