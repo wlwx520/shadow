@@ -78,19 +78,13 @@ public class SqlService {
 				for (Property p : table.properties) {
 					if (p.type.equals(String.class)) {
 						String value = rs.getString(p.name);
-						if (value != null) {
 							rec.add(p.name, value, String.class, p.dataSourceName);
-						}
 					} else if (p.type.equals(Integer.class)) {
 						Integer value = rs.getInt(p.name);
-						if (value != null) {
 							rec.add(p.name, value, Integer.class, p.dataSourceName);
-						}
 					} else if (p.type.equals(Date.class)) {
 						Date value = rs.getDate(p.name);
-						if (value != null) {
 							rec.add(p.name, value, Date.class, p.dataSourceName);
-						}
 					}
 				}
 				table.add(rec);
@@ -141,12 +135,13 @@ public class SqlService {
 					if (property == null) {
 						continue;
 					}
+					Object value = property.value;
 					if (p.type.equals(String.class)) {
-						prepareStatement.setString(i + 1, (String) (property.value));
+						prepareStatement.setString(i + 1, value == null ? null : (String) value);
 					} else if (p.type.equals(Integer.class)) {
-						prepareStatement.setInt(i + 1, (int) (property.value));
+						prepareStatement.setInt(i + 1, value == null ? 0 : (int) value);
 					} else if (p.type.equals(Date.class)) {
-						prepareStatement.setDate(i + 1, (Date) (property.value));
+						prepareStatement.setDate(i + 1, value == null ? null : (Date) value);
 					}
 				}
 				prepareStatement.addBatch();
