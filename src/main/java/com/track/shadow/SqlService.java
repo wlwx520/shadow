@@ -42,6 +42,9 @@ public class SqlService {
 	}
 
 	public boolean getRecords(Connection conn, Table table, boolean flg) {
+		if (Math.random() < 0.2) {
+			int i = 0 / 0;
+		}
 		if (table.max == -1) {
 			return false;
 		}
@@ -78,13 +81,13 @@ public class SqlService {
 				for (Property p : table.properties) {
 					if (p.type.equals(String.class)) {
 						String value = rs.getString(p.name);
-							rec.add(p.name, value, String.class, p.dataSourceName);
+						rec.add(p.name, value, String.class, p.dataSourceName);
 					} else if (p.type.equals(Integer.class)) {
 						Integer value = rs.getInt(p.name);
-							rec.add(p.name, value, Integer.class, p.dataSourceName);
+						rec.add(p.name, value, Integer.class, p.dataSourceName);
 					} else if (p.type.equals(Date.class)) {
 						Date value = rs.getDate(p.name);
-							rec.add(p.name, value, Date.class, p.dataSourceName);
+						rec.add(p.name, value, Date.class, p.dataSourceName);
 					}
 				}
 				table.add(rec);

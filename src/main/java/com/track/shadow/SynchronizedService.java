@@ -3,6 +3,7 @@ package com.track.shadow;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Date;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -12,6 +13,8 @@ import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
 public class SynchronizedService {
+	boolean isRun;
+	boolean stop;
 	int time;
 	String projectId;
 	SqlService mySqlService;
@@ -120,59 +123,82 @@ public class SynchronizedService {
 	}
 
 	public void process() {
-		int index = 0;
-		while (true) {
-			init();
-			LogServer.log("start to update tables...");
-			final int t = index;
-			tables.forEach(table -> {
-				if (t % table.timeOff != 0) {
-					return;
-				}
-				LogServer.log("start to init table...table = " + table.name);
-				if (table.type.equals("update")) {
-					table.max = 0;
-					LogServer.log("this table must update data all of this...");
-					LogServer.log("start to get data from source...");
-
-					getSourceService().getRecords(source.getConn(), table, false);
-					LogServer.log("get data from source completed...data count = " + table.recods.size());
-					
-					LogServer.log("start to update data to target...");
-					getTargetService().updateTable(target.getConn(), table, projectId);
-					LogServer.log("update data to target completed...");
-					LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-				} else if (table.type.equals("insert")) {
-					boolean again = false;
-					do {
-						getTargetService().getLast(target.getConn(), table, projectId);
-						LogServer.log("this table only insert...insert from " + table.max);
-
+		try {
+			this.isRun = true;
+			int index = 0;
+			while (!stop) {
+				init();
+				LogServer.log("start to update tables...");
+				final int t = index;
+				tables.forEach(table -> {
+					if (t % table.timeOff != 0) {
+						return;
+					}
+					LogServer.log("start to init table...table = " + table.name);
+					if (table.type.equals("update")) {
+						table.max = 0;
+						LogServer.log("this table must update data all of this...");
 						LogServer.log("start to get data from source...");
-						again = getSourceService().getRecords(source.getConn(), table, true);
+
+						getSourceService().getRecords(source.getConn(), table, false);
 						LogServer.log("get data from source completed...data count = " + table.recods.size());
-						
+
 						LogServer.log("start to update data to target...");
 						getTargetService().updateTable(target.getConn(), table, projectId);
 						LogServer.log("update data to target completed...");
 						LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-					} while (again);
-				}
+					} else if (table.type.equals("insert")) {
+						boolean again = false;
+						do {
+							getTargetService().getLast(target.getConn(), table, projectId);
+							LogServer.log("this table only insert...insert from " + table.max);
 
-			});
-			LogServer.log("####################################################");
-			index++;
-			source.close();
-			target.close();
-			source = null;
-			target = null;
-			tables = null;
-			try {
+							LogServer.log("start to get data from source...");
+							again = getSourceService().getRecords(source.getConn(), table, true);
+							LogServer.log("get data from source completed...data count = " + table.recods.size());
+
+							LogServer.log("start to update data to target...");
+							getTargetService().updateTable(target.getConn(), table, projectId);
+							LogServer.log("update data to target completed...");
+							LogServer.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+						} while (again);
+					}
+
+				});
+				LogServer.log("####################################################");
+				index++;
+				source.close();
+				target.close();
+				source = null;
+				target = null;
+				tables = null;
 				Thread.sleep(time * 1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			try {
+				if (target.getConn() != null && !target.getConn().isClosed()) {
+					target.getConn().close();
+				}
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			try {
+				if (source.getConn() != null && !source.getConn().isClosed()) {
+					source.getConn().close();
+				}
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			this.isRun = false;
 		}
 	}
 
+	public boolean isRun() {
+		return isRun;
+	}
+
+	public void stop() {
+		this.stop = true;
+	}
 }
