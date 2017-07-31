@@ -42,9 +42,6 @@ public class SqlService {
 	}
 
 	public boolean getRecords(Connection conn, Table table, boolean flg) {
-		if (Math.random() < 0.2) {
-			int i = 0 / 0;
-		}
 		if (table.max == -1) {
 			return false;
 		}
