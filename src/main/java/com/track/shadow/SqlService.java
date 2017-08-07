@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 
 public class SqlService {
 	public static String PAGESIZE = "1000";
@@ -83,7 +84,11 @@ public class SqlService {
 						Integer value = rs.getInt(p.name);
 						rec.add(p.name, value, Integer.class, p.dataSourceName);
 					} else if (p.type.equals(Date.class)) {
-						Date value = rs.getDate(p.name);
+						Timestamp timestamp = rs.getTimestamp(p.name);
+						Date value = null;
+						if (timestamp != null) {
+							value = new Date(timestamp.getTime());
+						}
 						rec.add(p.name, value, Date.class, p.dataSourceName);
 					}
 				}
@@ -141,7 +146,8 @@ public class SqlService {
 					} else if (p.type.equals(Integer.class)) {
 						prepareStatement.setInt(i + 1, value == null ? 0 : (int) value);
 					} else if (p.type.equals(Date.class)) {
-						prepareStatement.setDate(i + 1, value == null ? null : (Date) value);
+						prepareStatement.setTimestamp(i + 1,
+								value == null ? null : new Timestamp(((Date) value).getTime()));
 					}
 				}
 				prepareStatement.addBatch();

@@ -22,6 +22,7 @@
 		<table name="test" type="update" timeoff="1">
 			<field name="id" type="int" />
 			<field name="name" type="varchar" />
+			<field name="time" type="Date" />
 		</table>
 			<table name="testi" type="insert" timeoff="2">
 			<field name="id" type="int" />
