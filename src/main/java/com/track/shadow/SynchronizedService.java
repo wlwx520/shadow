@@ -128,6 +128,8 @@ public class SynchronizedService {
 			int index = 0;
 			while (!stop) {
 				init();
+				source.getConn().setAutoCommit(false);
+				target.getConn().setAutoCommit(false);
 				LogServer.log("start to update tables...");
 				final int t = index;
 				tables.forEach(table -> {
@@ -164,7 +166,14 @@ public class SynchronizedService {
 						} while (again);
 					}
 
+					try {
+						source.getConn().commit();
+						target.getConn().commit();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				});
+				LogServer.log("commit transaction...");
 				LogServer.log("####################################################");
 				index++;
 				source.close();
